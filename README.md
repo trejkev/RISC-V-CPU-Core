@@ -7,6 +7,8 @@ This code is a fork of Steve Hoover's original code, prepared for the Linux Foun
 Some important details are:
 1. The CPU will fully execute one instruction with each new clock cycle. Doing all of this work within a single clock cycle is only possible if the clock is running relatively slowly, which is our assumption.
 2. The CPU created is very basic, not a client-server level, but more like a low-profile microcontroller CPU. Which means, it is not a cutting-edge design, but an exemplification of how to create a functional one.
+3. A general-purpose CPU would typically have a large memory holding both instructions and data. At any reasonable clock speed, it would take many clock cycles to access memory. Caches would be used to hold recently-accessed memory data close to the CPU core. We are ignoring all of these sources of complexity. We are choosing to implement separate, and very small, instruction and data memories. It is typical to implement separate, single-cycle instruction and data caches, and our IMem and DMem are not unlike such caches.
+4. We are ignoring all of the logic that would be necessary to interface with the surrounding system, such as input/output (I/O) controllers, interrupt logic, system timers, etc.
 
 The CPU block diagram looks as follows.
 <p align="center">
