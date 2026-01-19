@@ -1,5 +1,29 @@
 # Building a RISC-V CPU Core
 
+## CPU Description
+
+This code is a fork of Steve Hoover's original code, prepared for the Linux Foundation course "Building a RISC-V CPU Core".
+
+Some important details are:
+1. The CPU will fully execute one instruction with each new clock cycle. Doing all of this work within a single clock cycle is only possible if the clock is running relatively slowly, which is our assumption.
+2. The CPU created is very basic, not a client-server level, but more like a low-profile microcontroller CPU. Which means, it is not a cutting-edge design, but an exemplification of how to create a functional one.
+
+The CPU block diagram looks as follows.
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/2728dd14-8f96-4662-b45b-e8f05645be99" width="600" />
+</p>
+
+The CPU has some important stages to note, these are the following:
+
+1. **PC Logic**: This logic is responsible for the program counter (PC). The PC identifies the instruction our CPU will execute next. Most instructions execute sequentially, meaning the default behavior of the PC is to increment to the following instruction each clock cycle. Branch and jump instructions, however, are non-sequential. They specify a target instruction to execute next, and the PC logic must update the PC accordingly.
+2. **Fetch**: The instruction memory (IMem) holds the instructions to execute. To read the IMem, or "fetch", we simply pull out the instruction pointed to by the PC.
+3. **Decode Logic**: Now that we have an instruction to execute, we must interpret, or decode, it. We must break it into fields based on its type. These fields would tell us which registers to read, which operation to perform, etc.
+4. **Register File Read**: The register file is a small local storage of values the program is actively working with. We decoded the instruction to determine which registers we need to operate on. Now, we need to read those registers from the register file.
+5. **Arithmetic Logic Unit (ALU)**: Now that we have the register values, it’s time to operate on them. This is the job of the ALU. It will add, subtract, multiply, shift, etc, based on the operation specified in the instruction.
+6. **Register File Write**:  Now the result value from the ALU can be written back to the destination register specified in the instruction.
+7. **DMem**: Our test program executes entirely out of the register file and does not require a data memory (DMem). But no CPU is complete without one. The DMem is written to by store instructions and read from by load instructions.
+
+
 ## Course Description
 
 This free mini-workshop, offered by by [Steve Hoover](https://www.linkedin.com/in/steve-hoover-a44b607/) of [Redwood EDA, LLC](https://redwoodeda.com), [Linux Foundation](https://www.linuxfoundation.org/), and [RISC-V International](https://riscv.org) is a crash course in digital logic design and basic CPU microarchitecture. Using the Makerchip online integrated development environment (IDE), you’ll implement everything from logic gates to a simple, but complete, RISC-V CPU core. You’ll be amazed by what you can do using freely-available online tools for open-source development. You’ll walk away with fundamental skills for a career in logic design, and you’ll position yourself on the forefront by learning to use the emerging Transaction-Level Verilog language extension (even if you don’t already know Verilog).
