@@ -47,6 +47,21 @@
    $next_pc[31:0] = $reset ? 0 : $pc[31:0] + 4;
    $pc[31:0] = >>1$next_pc[31:0]; // pc holds the previous value of next_pc
    
+   // Instruction Memory (IMem) puller
+   `READONLY_MEM($pc[31:0], $$instr[31:0]);
+   
+   // Instruction type detection - x is don't care, must be together with ==? to comply with System Verilog
+   $is_r_instr = $instr[6:2] == 5'b01011 || 
+                 $instr[6:2] ==? 5'b011x0 || 
+                 $instr[6:2] == 5'b10100;
+   $is_i_instr = $instr[6:2] ==? 5'b0000x || 
+                 $instr[6:2] ==? 5'b001x0 || 
+                 $instr[6:2] == 5'b11001;
+   $is_s_instr = $instr[6:2] ==? 5'b0100x;
+   $is_b_instr = $instr[6:2] == 5'b11000;
+   $is_u_instr = $instr[6:2] ==? 5'b0x101;
+   $is_j_instr = $instr[6:2] == 5'b11011;
+   
    
    // Assert these to end simulation (before Makerchip cycle limit).
    *passed = 1'b0;
