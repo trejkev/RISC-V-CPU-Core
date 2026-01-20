@@ -16,7 +16,7 @@ The CPU block diagram looks as follows.
   <img src="https://github.com/user-attachments/assets/2728dd14-8f96-4662-b45b-e8f05645be99" width="600" />
 </p>
 
-### PC Logic
+### Program Counter (PC) Logic
 
 This logic is responsible for the program counter (PC). The PC identifies the instruction our CPU will execute next. Most instructions execute sequentially, meaning the default behavior of the PC is to increment to the following instruction each clock cycle. Branch and jump instructions, however, are non-sequential. They specify a target instruction to execute next, and the PC logic must update the PC accordingly.
 
@@ -26,19 +26,27 @@ Note that:
 2. Instruction fetching should start from address zero, so the first $pc value with $reset deasserted should be zero, as is implemented in the logic diagram below.
 3. Unlike our earlier counter circuit, for readability, we use unique names for $pc and $next_pc, by assigning $pc to the previous $next_pc.
 
-### Instruction Memory (IMem)
+### Instruction Memory (IMem) - Fetch Action
 
-IMem is implemented by instantiating a Verilog macro. This macro accepts a byte address as input, and produces the 32-bit read data as output. The macro is the following: `` `READONLY_MEM($pc, $$read_data[31:0]) ``, where ``$$`` identify assigned signals.
+The instruction memory (IMem) holds the instructions to execute. To read the IMem, or "fetch", we simply pull out the instruction pointed to by the PC. IMem is implemented by instantiating a Verilog macro. This macro accepts a byte address as input, and produces the 32-bit read data as output. The macro is the following: `` `READONLY_MEM($pc, $$read_data[31:0]) ``, where ``$$`` identify assigned signals.
 
-This instruction memory macro is not the typical SRAM memory, but a kind of flip-flop-only based, that can give the data we need in the same cycle. Since it is a macro, there is no control on the inner workings of it, just give PC as input address, and collect data with a 32-bit-wide structure.
-
-### Fetch
-
-The instruction memory (IMem) holds the instructions to execute. To read the IMem, or "fetch", we simply pull out the instruction pointed to by the PC.
+This instruction memory macro is not the typical SRAM memory, but a kind of flip-flop-only-based memory, that can give the data we need in the same cycle. Since it is a macro, there is no control over its inner workings; just give PC as the input address, and collect data with a 32-bit-wide structure.
 
 ### Decode logic
 
 Now that we have an instruction to execute, we must interpret, or decode, it. We must break it into fields based on its type. These fields would tell us which registers to read, which operation to perform, etc.
+
+At first, based on the RISC-V Base instruction formats, it is necessary to identify, at first, the type of instruction we are dealing with, if it is any of the R-I-S-B-U-J types.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/24af1633-3272-470e-ab67-59961f1e6721" width="600" />
+</p>
+
+The instruction type is determined by its opcode, in ``$instr[6:0]``. Where ``$instr[1:0]`` must be 2'b11 for valid RV32I instructions. We'll take the assumption that all instructions are valid, so we can simply ignore these two bits. The ISA defines the instruction type to be determined as follows.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/1e094d9f-00bb-4e58-91fa-a0b8c03cd9a6" width="600" />
+</p>
 
 ### Register File Read
 
