@@ -1,8 +1,10 @@
 # Building a RISC-V CPU Core
 
+This code is a fork of Steve Hoover's original code, prepared for the Linux Foundation course "Building a RISC-V CPU Core". See the corresponding repo [here](https://github.com/stevehoover/LF-Building-a-RISC-V-CPU-Core.git).
+
 ## CPU Description
 
-This code is a fork of Steve Hoover's original code, prepared for the Linux Foundation course "Building a RISC-V CPU Core". See the corresponding repo [here](https://github.com/stevehoover/LF-Building-a-RISC-V-CPU-Core.git).
+The CPU implemented follows the RV32I architecture, which is a Risc-V (RV), with 32-bit instructions (32), and operating over integers (I). Operations like add and sub are at the core of this CPU, and in general, we may say that RV32I is at the core of every single RISC-V design.
 
 Some important details are:
 1. The CPU will fully execute one instruction with each new clock cycle. Doing all of this work within a single clock cycle is only possible if the clock is running relatively slowly, which is our assumption.
@@ -36,6 +38,8 @@ This instruction memory macro is not the typical SRAM memory, but a kind of flip
 
 Now that we have an instruction to execute, we must interpret, or decode, it. We must break it into fields based on its type. These fields would tell us which registers to read, which operation to perform, etc.
 
+#### Instruction Type Detection
+
 At first, based on the RISC-V Base instruction formats, it is necessary to identify, at first, the type of instruction we are dealing with, if it is any of the R-I-S-B-U-J types.
 
 <p align="center">
@@ -47,6 +51,17 @@ The instruction type is determined by its opcode, in ``$instr[6:0]``. Where ``$i
 <p align="center">
   <img src="https://github.com/user-attachments/assets/1e094d9f-00bb-4e58-91fa-a0b8c03cd9a6" width="600" />
 </p>
+
+#### Instruction Fields Extraction
+
+Once we know the specific instruction type, we can start portioning it according to the fields it is composed. It can be done by filtering based on the instruction type. Note that most of the fields are kinda shared between the instructions, it is because of the immediate values that this idea is broken into pieces. However, it may be valid to extract them regardless of the instruction type, and then, depending on the instruction type, ignore the fields that are not applicable.
+
+Immediate fields are not that easy, they vary from instruction to instruction, and even they have different patterns depending on the instruction type. In order to correctly shape it, use the following table from RV32I spec.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/92105d9c-e445-4d85-a627-7d95c7613d6e" width="600" />
+</p>
+
 
 ### Register File Read
 
