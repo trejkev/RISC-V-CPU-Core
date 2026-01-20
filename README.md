@@ -26,6 +26,12 @@ Note that:
 2. Instruction fetching should start from address zero, so the first $pc value with $reset deasserted should be zero, as is implemented in the logic diagram below.
 3. Unlike our earlier counter circuit, for readability, we use unique names for $pc and $next_pc, by assigning $pc to the previous $next_pc.
 
+### Instruction Memory (IMem)
+
+IMem is implemented by instantiating a Verilog macro. This macro accepts a byte address as input, and produces the 32-bit read data as output. The macro is the following: `` `READONLY_MEM($pc, $$read_data[31:0]) ``, where ``$$`` identify assigned signals.
+
+This instruction memory macro is not the typical SRAM memory, but a kind of flip-flop-only based, that can give the data we need in the same cycle. Since it is a macro, there is no control on the inner workings of it, just give PC as input address, and collect data with a 32-bit-wide structure.
+
 ### Fetch
 
 The instruction memory (IMem) holds the instructions to execute. To read the IMem, or "fetch", we simply pull out the instruction pointed to by the PC.
