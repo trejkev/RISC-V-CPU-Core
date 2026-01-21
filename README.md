@@ -2,6 +2,8 @@
 
 This code is a fork of Steve Hoover's original code, prepared for the Linux Foundation course "Building a RISC-V CPU Core". See the corresponding repo [here](https://github.com/stevehoover/LF-Building-a-RISC-V-CPU-Core.git).
 
+
+
 ## CPU Description
 
 The CPU implemented follows the RV32I architecture, which is a Risc-V (RV), with 32-bit instructions (32), and operating over integers (I). Operations like add and sub are at the core of this CPU, and in general, we may say that RV32I is at the core of every single RISC-V design.
@@ -18,6 +20,8 @@ The CPU block diagram looks as follows.
   <img src="https://github.com/user-attachments/assets/2728dd14-8f96-4662-b45b-e8f05645be99" width="600" />
 </p>
 
+
+
 ### Program Counter (PC) Logic
 
 This logic is responsible for the program counter (PC). The PC identifies the instruction our CPU will execute next. Most instructions execute sequentially, meaning the default behavior of the PC is to increment to the following instruction each clock cycle. Branch and jump instructions, however, are non-sequential. They specify a target instruction to execute next, and the PC logic must update the PC accordingly.
@@ -28,15 +32,21 @@ Note that:
 2. Instruction fetching should start from address zero, so the first $pc value with $reset deasserted should be zero, as is implemented in the logic diagram below.
 3. Unlike our earlier counter circuit, for readability, we use unique names for $pc and $next_pc, by assigning $pc to the previous $next_pc.
 
+
+
 ### Instruction Memory (IMem) - Fetch Action
 
 The instruction memory (IMem) holds the instructions to execute. To read the IMem, or "fetch", we simply pull out the instruction pointed to by the PC. IMem is implemented by instantiating a Verilog macro. This macro accepts a byte address as input, and produces the 32-bit read data as output. The macro is the following: `` `READONLY_MEM($pc, $$read_data[31:0]) ``, where ``$$`` identify assigned signals.
 
 This instruction memory macro is not the typical SRAM memory, but a kind of flip-flop-only-based memory, that can give the data we need in the same cycle. Since it is a macro, there is no control over its inner workings; just give PC as the input address, and collect data with a 32-bit-wide structure.
 
+
+
 ### Decode logic
 
 Now that we have an instruction to execute, we must interpret, or decode, it. We must break it into fields based on its type. These fields would tell us which registers to read, which operation to perform, etc.
+
+
 
 #### Instruction Type Detection
 
@@ -52,6 +62,8 @@ The instruction type is determined by its opcode, in ``$instr[6:0]``. Where ``$i
   <img src="https://github.com/user-attachments/assets/1e094d9f-00bb-4e58-91fa-a0b8c03cd9a6" width="600" />
 </p>
 
+
+
 #### Instruction Fields Extraction
 
 Once we know the specific instruction type, we can start portioning it according to the fields it is composed. It can be done by filtering based on the instruction type. Note that most of the fields are kinda shared between the instructions, it is because of the immediate values that this idea is broken into pieces. However, it may be valid to extract them regardless of the instruction type, and then, depending on the instruction type, ignore the fields that are not applicable.
@@ -62,6 +74,8 @@ Immediate fields are not that easy, they vary from instruction to instruction, a
   <img src="https://github.com/user-attachments/assets/92105d9c-e445-4d85-a627-7d95c7613d6e" width="600" />
 </p>
 
+
+
 #### Instruction Selection
 
 To determine the specific instruction, we need to consider the opcode, instr[30], and funct3 fields. Note that instr[30] is $funct7[5] for R-type, or $imm[10] for I-type and is labeled "funct7[5]".
@@ -69,6 +83,8 @@ To determine the specific instruction, we need to consider the opcode, instr[30]
 <p align="center">
   <img src="https://github.com/user-attachments/assets/bc9a501f-671f-403d-a6eb-9896d8815a32" width="600" />
 </p>
+
+
 
 ### Register File Read
 
@@ -82,15 +98,45 @@ For the implementation purposes, the register file is a pretty typical array str
 
 For example, to read register 5 (x5) and register 8 (x8), $rd_en1 and $rd_en2 would both be asserted, and $rd_index1 and $rd_index2 would be driven with 5 and 8.
 
+
+
 ### Arithmetic Logic Unit (ALU)
 
 Now that we have the register values, it’s time to operate on them. This is the job of the ALU. It will add, subtract, multiply, shift, etc, based on the operation specified in the instruction.
 
 The diagram of the CPU flow has an error, as the immediate value shall be in place of ``op2``, not ``op1``, as it is currently in the diagram.
 
+
+
 ### Register File Write
 
-Now the result value from the ALU can be written back to the destination register specified in the instruction.
+Now the result value from the ALU can be written back to the destination register specified in the instruction. However, it is important to consider there is a condition under which writing back to the register file is prohibited, and it is in the case the register to write is x0, which is an architecturally reliable register always containing the value zero.
+
+
+
+### Branching Logic
+
+Branching logic refers to the interpretation of conditional jump instructions, like BLT for "Branch if Less Than", which jumps to the target address (the target address becomes the new program counter value) if rs1 < rs2 in the instruction ``blt rs1, rs2, target_address``. The branching logic looks as follows.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/628e87d7-f564-4376-90c6-7d57f2f6dd3e" width="600" />
+</p>
+
+The complete list of branching instructions are is shown below.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/463b427a-98bc-4e1f-9290-0e14f00397dd" width="600" />
+</p>
+
+If we were to implement a logic diagram that computes if a branch is taken or not it'd be the following, which utilizes a MUX-alike model that chooses the specific branching instruction result, just like the following.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/e0af2b38-3ff5-46d0-8d86-cf34f795ee67" width="600" />
+</p>
+
+To implement the signed branching we utilized a XOR gate to validate the comparison, in a fashion of ``(Unsigned Comparison) XOR (Are the signs different?)``, if the unsigned comparison is a hit but the signs are different, that means in a signed comparison it is a miss (operation is inverted), but if the signs are equal the result from the unsigned comparison remains the same.
+
+
 
 ### DMem
 
