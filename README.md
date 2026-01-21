@@ -86,6 +86,8 @@ For example, to read register 5 (x5) and register 8 (x8), $rd_en1 and $rd_en2 wo
 
 Now that we have the register values, it’s time to operate on them. This is the job of the ALU. It will add, subtract, multiply, shift, etc, based on the operation specified in the instruction.
 
+The diagram of the CPU flow has an error, as the immediate value shall be in place of ``op2``, not ``op1``, as it is currently in the diagram.
+
 ### Register File Write
 
 Now the result value from the ALU can be written back to the destination register specified in the instruction.
