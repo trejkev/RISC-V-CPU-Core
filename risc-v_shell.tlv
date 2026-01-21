@@ -42,10 +42,6 @@
    
    $reset = *reset;
    
-   // Sequential Program Counter (no branching)
-   $next_pc[31:0] = $reset ? 0 : $pc[31:0] + 4;
-   $pc[31:0] = >>1$next_pc[31:0]; // pc holds the previous value of next_pc
-   
    // Instruction Memory (IMem) puller
    `READONLY_MEM($pc[31:0], $$instr[31:0]);
    
@@ -97,13 +93,39 @@
    $is_addi = $dec_bits ==? 11'bx_000_0010011;
    $is_add  = $dec_bits ==? 11'b0_000_0110011;
    
+   // ALU implementation
+   $result[31:0] = $is_addi ? $src1_value + $imm :
+                   $is_add ? $src1_value + $src2_value :
+                   32'b0; // Default
+   
+   // Write the result to the register file
+   $wr_data[31:0] = $result[31:0];
+   $wr_en = $rd[4:0] != 5'b0 ? 1:0; // Can write only if rd is not x0, which is designed to be always zero
+   
+   // Branching Logic - Program Counter Update
+   //     1. Identify if the branch is taken or not
+   $taken_br = $is_beq  ? $src1_value == $src2_value :
+               $is_bne  ? $src1_value != $src2_value :
+               $is_bltu ? $src1_value <  $src2_value :
+               $is_bgeu ? $src1_value >= $src2_value :
+               $is_blt  ? ($src1_value <  $src2_value) ^ ($src1_value[31] != $src2_value[31]):
+               $is_bge  ? ($src1_value >= $src2_value) ^ ($src1_value[31] != $src2_value[31]):
+               1'b0; // Default to zero
+   //     2. Compute the new PC, as an offset of the current PC
+   $br_tgt_pc[31:0] = $pc[31:0] + $imm[31:0];
+   //     3. Choose the new PC, depending on the taken_br value
+   $next_pc[31:0] = $reset ? 0 :
+                    $taken_br ? $br_tgt_pc[31:0] : $pc[31:0] + 4;
+   //     4. Make sure PC holds the previous value of next_pc
+   $pc[31:0] = >>1$next_pc[31:0];
+   
    
    // Assert these to end simulation (before Makerchip cycle limit).
-   *passed = 1'b0;
+   m4+tb()
    *failed = *cyc_cnt > M4_MAX_CYC;
    
    // Register File (RF) puller
-   m4+rf(32, 32, $reset, $wr_en, $rd[4:0], $wr_data[31:0], $rd_en1, $rs1[4:0], $src1_value, $rd_en2, $rs2[4:0], $src2_value)
+   m4+rf(32, 32, $reset, $wr_en, $rd[4:0], $wr_data[31:0], $rs1_valid, $rs1[4:0], $src1_value, $rs2_valid, $rs2[4:0], $src2_value)
    //m4+dmem(32, 32, $reset, $addr[4:0], $wr_en, $wr_data[31:0], $rd_en, $rd_data)
    m4+cpu_viz()
 \SV
