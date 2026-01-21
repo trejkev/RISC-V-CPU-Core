@@ -42,7 +42,6 @@
    
    $reset = *reset;
    
-   
    // Sequential Program Counter (no branching)
    $next_pc[31:0] = $reset ? 0 : $pc[31:0] + 4;
    $pc[31:0] = >>1$next_pc[31:0]; // pc holds the previous value of next_pc
@@ -50,7 +49,7 @@
    // Instruction Memory (IMem) puller
    `READONLY_MEM($pc[31:0], $$instr[31:0]);
    
-   // Instruction type detection - x is don't care, must be together with ==? to comply with System Verilog
+   // Instruction type detection - x is don't care, must be together with ==?
    $is_r_instr = $instr[6:2] == 5'b01011 || 
                  $instr[6:2] ==? 5'b011x0 || 
                  $instr[6:2] == 5'b10100;
@@ -61,13 +60,13 @@
    $is_b_instr = $instr[6:2] == 5'b11000;
    $is_u_instr = $instr[6:2] ==? 5'b0x101;
    $is_j_instr = $instr[6:2] == 5'b11011;
-
+   
    // Instruction fields extraction - Don't care the type, unnecessary fields are ignored
    $funct7[6:0] = $instr[31:25];
-   $rs2[4:0]    = $instr[24:20];
-   $rs1[4:0]    = $instr[19:15];
+   $rs2[4:0]    = $instr[24:20]; // Direction of the register 2 to read
+   $rs1[4:0]    = $instr[19:15]; // Direction of the register 1 to read
    $funct3[2:0] = $instr[14:12];
-   $rd[4:0]     = $instr[11:7];
+   $rd[4:0]     = $instr[11:7]; // Direction of the register to write
    $opcode[6:0] = $instr[6:0];
    
    // Determine when each field is valid or not
@@ -78,7 +77,7 @@
    $rd_valid     = $is_r_instr || $is_i_instr || $is_u_instr || $is_j_instr;
    $imm_valid    = $is_r_instr == 0;
    
-   // Obtain immediate (imm) field, depending on the instruction type
+   // Obtain immediate field, depending on the instruction type
    
    $imm[31:0] = $is_i_instr ? {{21{$instr[31]}}, $instr[30:20]} : 
                 $is_s_instr ? {{21{$instr[31]}}, $instr[30:25], $instr[11:8], $instr[7]} : 
@@ -87,12 +86,24 @@
                 $is_j_instr ? {{12{$instr[31]}}, $instr[19:12], $instr[20], $instr[30:25], $instr[41:21], 1'b0} : 
                 32'b0; // Default scenario
    
+   // Determine the instruction to execute
+   $dec_bits[10:0] = {$instr[30],$funct3,$opcode}; // Concatenate the relevant fields
+   $is_beq  = $dec_bits ==? 11'bx_000_1100011;
+   $is_bne  = $dec_bits ==? 11'bx_001_1100011;
+   $is_blt  = $dec_bits ==? 11'bx_100_1100011;
+   $is_bge  = $dec_bits ==? 11'bx_101_1100011;
+   $is_bltu = $dec_bits ==? 11'bx_110_1100011;
+   $is_bgeu = $dec_bits ==? 11'bx_111_1100011;
+   $is_addi = $dec_bits ==? 11'bx_000_0010011;
+   $is_add  = $dec_bits ==? 11'b0_000_0110011;
+   
    
    // Assert these to end simulation (before Makerchip cycle limit).
    *passed = 1'b0;
    *failed = *cyc_cnt > M4_MAX_CYC;
    
-   //m4+rf(32, 32, $reset, $wr_en, $wr_index[4:0], $wr_data[31:0], $rd_en1, $rd_index1[4:0], $rd_data1, $rd_en2, $rd_index2[4:0], $rd_data2)
+   // Register File (RF) puller
+   m4+rf(32, 32, $reset, $wr_en, $rd[4:0], $wr_data[31:0], $rd_en1, $rs1[4:0], $src1_value, $rd_en2, $rs2[4:0], $src2_value)
    //m4+dmem(32, 32, $reset, $addr[4:0], $wr_en, $wr_data[31:0], $rd_en, $rd_data)
    m4+cpu_viz()
 \SV
