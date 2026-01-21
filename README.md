@@ -62,10 +62,25 @@ Immediate fields are not that easy, they vary from instruction to instruction, a
   <img src="https://github.com/user-attachments/assets/92105d9c-e445-4d85-a627-7d95c7613d6e" width="600" />
 </p>
 
+#### Instruction Selection
+
+To determine the specific instruction, we need to consider the opcode, instr[30], and funct3 fields. Note that instr[30] is $funct7[5] for R-type, or $imm[10] for I-type and is labeled "funct7[5]".
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/bc9a501f-671f-403d-a6eb-9896d8815a32" width="600" />
+</p>
 
 ### Register File Read
 
 The register file is a small local storage of values the program is actively working with. We decoded the instruction to determine which registers we need to operate on. Now, we need to read those registers from the register file.
+
+For the implementation purposes, the register file is a pretty typical array structure, so we can find a library component for it. This time, rather than using a Verilog module or macro as we did for IMem, we will use a TL-Verilog array definition, expanded by the M4 macro preprocessor. The directive is ``m4+rf(32, 32, $reset, $wr_en, $wr_index[4:0], $wr_data[31:0], $rd_en1, $rd_index1[4:0], $rd_data1, $rd_en2, $rd_index2[4:0], $rd_data2)``, which instantiates a 32-entry, 32-bit-wide register file connected to the given input and output signals, as depicted below. Each of the two read ports requires an index to read from and an enable signal that must assert when a read is required, and it produces read data as output (on the same cycle).
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/43c6326f-04ce-4325-8419-8116ab26134a" width="600" />
+</p>
+
+For example, to read register 5 (x5) and register 8 (x8), $rd_en1 and $rd_en2 would both be asserted, and $rd_index1 and $rd_index2 would be driven with 5 and 8.
 
 ### Arithmetic Logic Unit (ALU)
 
