@@ -47,7 +47,11 @@
    // Instruction Memory (IMem) puller
    `READONLY_MEM($pc[31:0], $$instr[31:0]);
    
-   // Instruction type detection - x is don't care, must be together with ==?
+   
+   
+   // Decode implementation
+   
+   // 1. Instruction type detection - x is don't care, must be together with ==?
    $is_r_instr = $instr[6:2] == 5'b01011 || 
                  $instr[6:2] ==? 5'b011x0 || 
                  $instr[6:2] == 5'b10100;
@@ -59,7 +63,7 @@
    $is_u_instr = $instr[6:2] ==? 5'b0x101;
    $is_j_instr = $instr[6:2] == 5'b11011;
    
-   // Instruction fields extraction - Don't care the type, unnecessary fields are ignored
+   // 2. Instruction fields extraction - Don't care the type, unnecessary fields are ignored
    $funct7[6:0] = $instr[31:25];
    $rs2[4:0]    = $instr[24:20]; // Direction of the register 2 to read
    $rs1[4:0]    = $instr[19:15]; // Direction of the register 1 to read
@@ -67,7 +71,7 @@
    $rd[4:0]     = $instr[11:7]; // Direction of the register to write
    $opcode[6:0] = $instr[6:0];
    
-   // Determine when each field is valid or not
+   // 3. Determine when each field is valid or not
    $funct7_valid = $is_r_instr;
    $rs2_valid    = $is_r_instr || $is_s_instr || $is_b_instr;
    $rs1_valid    = $is_r_instr || $is_i_instr || $is_s_instr || $is_b_instr;
@@ -75,7 +79,7 @@
    $rd_valid     = $is_r_instr || $is_i_instr || $is_u_instr || $is_j_instr;
    $imm_valid    = $is_r_instr == 0;
    
-   // Obtain immediate field, depending on the instruction type
+   // 4. Obtain immediate field, depending on the instruction type
    
    $imm[31:0] = $is_i_instr ? {{21{$instr[31]}}, $instr[30:20]} : 
                 $is_s_instr ? {{21{$instr[31]}}, $instr[30:25], $instr[11:8], $instr[7]} : 
@@ -84,11 +88,12 @@
                 $is_j_instr ? {{12{$instr[31]}}, $instr[19:12], $instr[20], $instr[30:25], $instr[41:21], 1'b0} : 
                 32'b0; // Default scenario
    
-   // Determine the instruction to execute - load and store not implemented (LB, LH, LW, LBU, LHU, SB, SH, SW)
+   // 5. Determine the instruction to execute - load and store not implemented (LB, LH, LW, LBU, LHU, SB, SH, SW)
    $dec_bits[10:0] = {$instr[30],$funct3,$opcode}; // Concatenate the relevant fields
    $is_lui   = $dec_bits ==? 11'bx_xxx_0110111;
    $is_auipc = $dec_bits ==? 11'bx_xxx_0010111;
    $is_jal   = $dec_bits ==? 11'bx_xxx_1101111;
+   $is_jalr  = $dec_bits ==? 11'bx_000_1100111;
    $is_beq   = $dec_bits ==? 11'bx_000_1100011;
    $is_bne   = $dec_bits ==? 11'bx_001_1100011;
    $is_blt   = $dec_bits ==? 11'bx_100_1100011;
@@ -116,17 +121,57 @@
    $is_and   = $dec_bits ==? 11'b0_111_0110011;
    $is_load  = $dec_bits ==? 11'bx_xxx_0000011; // In our implementation, all loads are treated the same way
    
+   
+   
    // ALU implementation
-   $result[31:0] = $is_addi ? $src1_value + $imm :
-                   $is_add ? $src1_value + $src2_value :
+   
+   // 1. SLTU and SLTI (set if less than) results:
+   $sltu_rslt[31:0]  = {31'b0, $src1_value < $src2_value};
+   $sltiu_rslt[31:0] = {31'b0, $src1_value < $imm};
+   
+   // 2. SRA and SRAI (shift right arithmetic) results:
+   // 2.1. Sign-extended src1, so that even if shifting 31 bits the sign is not lost
+   $sext_src1[63:0] = {{32{$src1_value[31]}}, $src1_value};
+   // 2.2. 64-bit sign-extended results, to be truncated
+   //      Extends $sext_src1 by whatever $src2_value or $src2_value positions say
+   $sra_rslt[63:0]  = $sext_src1 >> $src2_value[4:0];
+   $srai_rslt[63:0] = $sext_src1 >> $src2_value[4:0];
+   
+   // 3. Result computation depending on the instruction
+   $result[31:0] = $is_andi  ? $src1_value &  $imm             :
+                   $is_ori   ? $src1_value |  $imm             :
+                   $is_xori  ? $src1_value ^  $imm             :
+                   $is_addi  ? $src1_value +  $imm             :
+                   $is_slli  ? $src1_value << $imm[5:0]        :
+                   $is_srli  ? $src1_value >> $imm[5:0]        :
+                   $is_and   ? $src1_value &  $src2_value      :
+                   $is_or    ? $src1_value |  $src2_value      :
+                   $is_xor   ? $src1_value ^  $src2_value      :
+                   $is_add   ? $src1_value +  $src2_value      :
+                   $is_sub   ? $src1_value -  $src2_value      :
+                   $is_sll   ? $src1_value << $src2_value[4:0] : // Shift left logical
+                   $is_srl   ? $src1_value >> $src2_value[4:0] : // Shift right logical
+                   $is_sltu  ? $sltu_rslt                      : // Set if less than - Unsigned
+                   $is_sltiu ? $sltiu_rslt                     : // Set if less than immediate - unsigned
+                   $is_lui   ? {$imm[31:12], 12'b0}            : // Load upper immediate
+                   $is_auipc ? $pc + $imm                      : // Add upper immediate to PC
+                   $is_jal   ? $pc + 32'd4                     : // Jump and link -> Saves the address of the next instruction into return address reg,then jumps
+                   $is_jalr  ? $pc + 32'd4                     : // Jump and link register -> Similar to JAL
+                   $is_sra   ? $sra_rslt[31:0]                 : // Shift right arithmetic
+                   $is_srai  ? $srai_rslt[31:0]                : // Shift right arithmetic with immediate value
+                   $is_slt   ? (($src1_value[31] == $src2_value[31]) ? $sltu_rslt  : {31'b0, $src1_value[31]}) : // Set if less than
+                   $is_slti  ? (($src1_value[31] == $imm[31]       ) ? $sltiu_rslt : {31'b0, $src1_value[31]}) : // Set if less than immediate
                    32'b0; // Default
    
-   // Write the result to the register file
+   // 4. Write the result to the register file
    $wr_data[31:0] = $result[31:0];
    $wr_en = $rd[4:0] != 5'b0 ? 1:0; // Can write only if rd is not x0, which is designed to be always zero
    
-   // Branching Logic - Program Counter Update
-   //     1. Identify if the branch is taken or not
+   
+   
+   // Program Counter implementation with Branching Logic
+   
+   // 1. Identify if the branch is taken or not
    $taken_br = $is_beq  ? $src1_value == $src2_value :
                $is_bne  ? $src1_value != $src2_value :
                $is_bltu ? $src1_value <  $src2_value :
@@ -134,12 +179,12 @@
                $is_blt  ? ($src1_value <  $src2_value) ^ ($src1_value[31] != $src2_value[31]):
                $is_bge  ? ($src1_value >= $src2_value) ^ ($src1_value[31] != $src2_value[31]):
                1'b0; // Default to zero
-   //     2. Compute the new PC, as an offset of the current PC
+   // 2. Compute the new PC, as an offset of the current PC
    $br_tgt_pc[31:0] = $pc[31:0] + $imm[31:0];
-   //     3. Choose the new PC, depending on the taken_br value
+   // 3. Choose the new PC, depending on the taken_br value
    $next_pc[31:0] = $reset ? 0 :
                     $taken_br ? $br_tgt_pc[31:0] : $pc[31:0] + 4;
-   //     4. Make sure PC holds the previous value of next_pc
+   // 4. Make sure PC holds the previous value of next_pc
    $pc[31:0] = >>1$next_pc[31:0];
    
    
