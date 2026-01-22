@@ -135,7 +135,7 @@
    // 2.2. 64-bit sign-extended results, to be truncated
    //      Extends $sext_src1 by whatever $src2_value or $src2_value positions say
    $sra_rslt[63:0]  = $sext_src1 >> $src2_value[4:0];
-   $srai_rslt[63:0] = $sext_src1 >> $src2_value[4:0];
+   $srai_rslt[63:0] = $sext_src1 >> $imm[4:0];
    
    // 3. Result computation depending on the instruction
    $result[31:0] = $is_andi  ? $src1_value &  $imm             :
