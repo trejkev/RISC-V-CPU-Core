@@ -169,21 +169,26 @@
    
    
    
-   // Program Counter implementation with Branching Logic
+   // Program Counter implementation with Branching and Jumping Logic
    
-   // 1. Identify if the branch is taken or not
-   $taken_br = $is_beq  ? $src1_value == $src2_value :
+   // 1. Identify if the branch/jump is taken or not
+   $taken_br = $is_jal  ? 1'b1                       : // Unconditional jump
+               $is_beq  ? $src1_value == $src2_value :
                $is_bne  ? $src1_value != $src2_value :
                $is_bltu ? $src1_value <  $src2_value :
                $is_bgeu ? $src1_value >= $src2_value :
                $is_blt  ? ($src1_value <  $src2_value) ^ ($src1_value[31] != $src2_value[31]):
                $is_bge  ? ($src1_value >= $src2_value) ^ ($src1_value[31] != $src2_value[31]):
                1'b0; // Default to zero
-   // 2. Compute the new PC, as an offset of the current PC
+   // 2.1. Compute the new PC, as an offset of the current PC for branching and JAL logic
    $br_tgt_pc[31:0] = $pc[31:0] + $imm[31:0];
+   // 2.2. Compute the new PC, as src1 + imm for JALR logic
+   $jalr_tgt_pc[31:0] = $src1_value[31:0] + $imm[31:0];
    // 3. Choose the new PC, depending on the taken_br value
-   $next_pc[31:0] = $reset ? 0 :
-                    $taken_br ? $br_tgt_pc[31:0] : $pc[31:0] + 4;
+   $next_pc[31:0] = $reset    ? 0                  :
+                    $taken_br ? $br_tgt_pc[31:0]   :
+                    $is_jalr  ? $jalr_tgt_pc[31:0] :
+                    $pc[31:0] + 4;
    // 4. Make sure PC holds the previous value of next_pc
    $pc[31:0] = >>1$next_pc[31:0];
    
