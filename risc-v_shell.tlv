@@ -138,33 +138,35 @@
    $srai_rslt[63:0] = $sext_src1 >> $imm[4:0];
    
    // 3. Result computation depending on the instruction
-   $result[31:0] = $is_andi  ? $src1_value &  $imm             :
-                   $is_ori   ? $src1_value |  $imm             :
-                   $is_xori  ? $src1_value ^  $imm             :
-                   $is_addi  ? $src1_value +  $imm             :
-                   $is_slli  ? $src1_value << $imm[5:0]        :
-                   $is_srli  ? $src1_value >> $imm[5:0]        :
-                   $is_and   ? $src1_value &  $src2_value      :
-                   $is_or    ? $src1_value |  $src2_value      :
-                   $is_xor   ? $src1_value ^  $src2_value      :
-                   $is_add   ? $src1_value +  $src2_value      :
-                   $is_sub   ? $src1_value -  $src2_value      :
-                   $is_sll   ? $src1_value << $src2_value[4:0] : // Shift left logical
-                   $is_srl   ? $src1_value >> $src2_value[4:0] : // Shift right logical
-                   $is_sltu  ? $sltu_rslt                      : // Set if less than - Unsigned
-                   $is_sltiu ? $sltiu_rslt                     : // Set if less than immediate - unsigned
-                   $is_lui   ? {$imm[31:12], 12'b0}            : // Load upper immediate
-                   $is_auipc ? $pc + $imm                      : // Add upper immediate to PC
-                   $is_jal   ? $pc + 32'd4                     : // Jump and link -> Saves the address of the next instruction into return address reg,then jumps
-                   $is_jalr  ? $pc + 32'd4                     : // Jump and link register -> Similar to JAL
-                   $is_sra   ? $sra_rslt[31:0]                 : // Shift right arithmetic
-                   $is_srai  ? $srai_rslt[31:0]                : // Shift right arithmetic with immediate value
-                   $is_slt   ? (($src1_value[31] == $src2_value[31]) ? $sltu_rslt  : {31'b0, $src1_value[31]}) : // Set if less than
-                   $is_slti  ? (($src1_value[31] == $imm[31]       ) ? $sltiu_rslt : {31'b0, $src1_value[31]}) : // Set if less than immediate
+   $result[31:0] = $is_andi    ? $src1_value &  $imm             :
+                   $is_ori     ? $src1_value |  $imm             :
+                   $is_xori    ? $src1_value ^  $imm             :
+                   $is_addi    ? $src1_value +  $imm             :
+                   $is_slli    ? $src1_value << $imm[5:0]        :
+                   $is_srli    ? $src1_value >> $imm[5:0]        :
+                   $is_and     ? $src1_value &  $src2_value      :
+                   $is_or      ? $src1_value |  $src2_value      :
+                   $is_xor     ? $src1_value ^  $src2_value      :
+                   $is_add     ? $src1_value +  $src2_value      :
+                   $is_sub     ? $src1_value -  $src2_value      :
+                   $is_sll     ? $src1_value << $src2_value[4:0] : // Shift left logical
+                   $is_srl     ? $src1_value >> $src2_value[4:0] : // Shift right logical
+                   $is_sltu    ? $sltu_rslt                      : // Set if less than - Unsigned
+                   $is_sltiu   ? $sltiu_rslt                     : // Set if less than immediate - unsigned
+                   $is_lui     ? {$imm[31:12], 12'b0}            : // Load upper immediate
+                   $is_auipc   ? $pc + $imm                      : // Add upper immediate to PC
+                   $is_jal     ? $pc + 32'd4                     : // Jump and link -> Saves the address of the next instruction into return address reg,then jumps
+                   $is_jalr    ? $pc + 32'd4                     : // Jump and link register -> Similar to JAL
+                   $is_sra     ? $sra_rslt[31:0]                 : // Shift right arithmetic
+                   $is_srai    ? $srai_rslt[31:0]                : // Shift right arithmetic with immediate value
+                   $is_slt     ? (($src1_value[31] == $src2_value[31]) ? $sltu_rslt  : {31'b0, $src1_value[31]}) : // Set if less than
+                   $is_slti    ? (($src1_value[31] == $imm[31]       ) ? $sltiu_rslt : {31'b0, $src1_value[31]}) : // Set if less than immediate
+                   $is_load    ? $src1_value +  $imm             :
+                   $is_s_instr ? $src1_value +  $imm             :
                    32'b0; // Default
    
    // 4. Write the result to the register file
-   $wr_data[31:0] = $result[31:0];
+   $wr_data[31:0] = $is_load ? $ld_data[31:0] : $result[31:0]; // Multiplex what to write, either DMem loaded data or ALU output
    $wr_en = $rd[4:0] != 5'b0 ? 1:0; // Can write only if rd is not x0, which is designed to be always zero
    
    
@@ -193,13 +195,15 @@
    $pc[31:0] = >>1$next_pc[31:0];
    
    
+   
    // Assert these to end simulation (before Makerchip cycle limit).
    m4+tb()
    *failed = *cyc_cnt > M4_MAX_CYC;
    
    // Register File (RF) puller
    m4+rf(32, 32, $reset, $wr_en, $rd[4:0], $wr_data[31:0], $rs1_valid, $rs1[4:0], $src1_value, $rs2_valid, $rs2[4:0], $src2_value)
-   //m4+dmem(32, 32, $reset, $addr[4:0], $wr_en, $wr_data[31:0], $rd_en, $rd_data)
+   // Dynamic Memory (DMem) load and store
+   m4+dmem(32, 32, $reset, $result[6:2], $is_s_instr, $src2_value[31:0], $is_load, $ld_data)
    m4+cpu_viz()
 \SV
    endmodule
