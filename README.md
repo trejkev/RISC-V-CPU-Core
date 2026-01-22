@@ -159,6 +159,17 @@ To implement the signed branching we utilized a XOR gate to validate the compari
 
 
 
+### Jumping Logic (Unconditional Branch)
+
+The jumping logic, compared to branching logic, performs branching without requiring any condition to be met. RV32I ISA provides two forms of jump instructions:
+
+1. Jump and Link (JAL): Jumps to PC + IMM. This logic is similar to branching logic, with the difference that it is unconditional.
+2. Jump and Link Register (JALR): Jumps to SRC1 + IMM.
+
+The "link" wording refers to the fact that these instructions capture their original ``PC + 4`` in a destination register.
+
+
+
 ### DMem
 
 Our test program executes entirely out of the register file and does not require a data memory (DMem). But no CPU is complete without one. The DMem is written to by store instructions and read from by load instructions.
