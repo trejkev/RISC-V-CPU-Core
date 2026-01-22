@@ -170,6 +170,24 @@ The "link" wording refers to the fact that these instructions capture their orig
 
 
 
-### DMem
+### Dynamic Memory - DMem
 
-Our test program executes entirely out of the register file and does not require a data memory (DMem). But no CPU is complete without one. The DMem is written to by store instructions and read from by load instructions.
+Our test program executes entirely out of the register file and does not require a data memory (DMem). But no CPU is complete without one. The DMem is written to by store instructions and read from by load instructions. It can read and write bytes, half-words (2 bytes) or words (4 bytes).
+
+The address to load or store is computed based on the value from a source register and an offset value, provided as the immediate. Just like ``address = src_reg + imm``.
+
+To be able to run tests, a dynamic memory DMem was instantiated in order to mimic the laoding and storing operations. This DMem block is the same size as the register memory for simplicity, but can only read or write every cycle. The way to call it is the following: ``m4+dmem(32, 32, $reset, $addr[4:0], $wr_en, $wr_data[31:0], $rd_en, $rd_data)`` and shall be placed at the end of the code.
+
+Since all of the instructions
+
+#### Loading
+
+A load instruction (LW, LH, LB, LHU, LBU) takes the form ``LOAD rd, imm(rs1)``. It uses the I-type instruction format, and writes its destination register with a value read from the specified address of memory, which we can denote as ``rd <= Dmem[addr]``, where ``addr = rs1 + imm``.
+
+##### Storing
+
+A store instruction (SW, SH, SB) takes the form ``STORE rs2, imm(rs1)``, it has its own S-type instruction format, and it writes the specified address of memory with a value from the rs2 source register ``DMem[addr] <= rs2``, where ``addr = rs1 + imm``.
+
+#### Addressing Logic
+
+The address computation ``rs1 + imm`` is the same computation performed by ADDI. Since load/store instructions do not otherwise require the ALU, we used the ALU for this computation.
