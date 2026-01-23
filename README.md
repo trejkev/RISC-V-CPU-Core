@@ -2,6 +2,8 @@
 
 This code is a fork of Steve Hoover's original code, prepared for the Linux Foundation course "Building a RISC-V CPU Core". See the corresponding repo [here](https://github.com/stevehoover/LF-Building-a-RISC-V-CPU-Core.git).
 
+Since the HW was developed using TL-Verilog, it is strongly recommended to utilize _[Makerchip](https://makerchip.com/)_ as your IDE, since it provides all of the tools required to visualize and simulate the system behavior.
+
 
 
 ## CPU Description
