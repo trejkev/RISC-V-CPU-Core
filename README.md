@@ -195,7 +195,7 @@ The "link" wording refers to the fact that these instructions capture their orig
 A test bench was created, in order to verify the correct functionality of the PC in isolation mode, the resulting diagram is shown below, where it is noticeable the correctness of the program counter computation based on the events it faces every positive edge of the clock.
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/50faf1d3-8d52-46c4-ae65-8ef903a4c8cf" width="600" />
+  <img src="https://github.com/user-attachments/assets/50faf1d3-8d52-46c4-ae65-8ef903a4c8cf" width="1100" />
 </p>
 
 
