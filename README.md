@@ -190,6 +190,16 @@ The "link" wording refers to the fact that these instructions capture their orig
 
 
 
+### Testbench
+
+A test bench was created, in order to verify the correct functionality of the PC in isolation mode, the resulting diagram is shown below, where it is noticeable the correctness of the program counter computation based on the events it faces every positive edge of the clock.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/50faf1d3-8d52-46c4-ae65-8ef903a4c8cf" width="1100" />
+</p>
+
+
+
 ## Data Memory - DMem
 
 Our test program executes entirely out of the register file and does not require a data memory (DMem). But no CPU is complete without one. The DMem is written to by store instructions and read from by load instructions. It can read and write bytes, half-words (2 bytes) or words (4 bytes).
