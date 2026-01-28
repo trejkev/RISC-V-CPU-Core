@@ -61,11 +61,19 @@ At first, based on the RISC-V Base instruction formats, it is necessary to ident
   <img src="https://github.com/user-attachments/assets/24af1633-3272-470e-ab67-59961f1e6721" width="600" />
 </p>
 
-The instruction type is determined by its opcode, in ``$instr[6:0]``. Where ``$instr[1:0]`` must be ``2'b11`` for valid RV32I instructions. We'll take the assumption that all instructions are valid, so we can simply ignore these two bits. The ISA defines the instruction type to be determined as follows.
+The instruction type is determined by its opcode, in ``$instr[6:0]``. Where ``$instr[1:0]`` must be ``2'b11`` for valid RV32I instructions, indicating they are 32-bit instructions from its ISA. We'll assume all instructions are valid, so we can simply ignore these two bits.
 
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/1e094d9f-00bb-4e58-91fa-a0b8c03cd9a6" width="600" />
-</p>
+The ISA defines the instruction type as follows.
+
+| opcode[6:5] ↓ / opcode[4:2] → | 000 | 001 | 010 | 011 | 100 | 101 | 110 | 111 |
+|:-----------------------------:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| 00                            |  I  |     |     |  I  |  U  |     |     |     |
+| 01                            |  S  |     |     |  R  |  U  |     |     |     |
+| 10                            |     |     |     |     |     |     |     |     |
+| 11                            | SB  |  I  |     | UJ  |     |     |     |     |
+
+*Note*: Consider that this table was constructed only for the basic functionalities of the ISA, thus ignoring instructions like ``FENCE``, ``EBREAK``, ``ECALL``, and ``CSR``.
+
 
 
 
@@ -83,11 +91,14 @@ Immediate fields are not that easy, they vary from instruction to instruction, a
 
 ### Instruction Selection
 
-To determine the specific instruction, we need to consider the opcode, instr[30], and funct3 fields. Note that instr[30] is ``$funct7[5]`` for R-type, or ``$imm[10]`` for I-type and is labeled ``funct7[5]``.
+To determine the specific instruction, we need to consider the opcode, instr[30], and funct3 fields. Note that instr[30] is ``$funct7[5]`` for R-type, or ``$imm[10]`` for I-type and is labeled ``funct7[5]``. As you can tell from the figure below, taken from _Volume I: RISC-V User-Level ISA V2.1_, it is noticeable that the fields mentioned are the ones differentiating some instructions, and bucketting together others, that is the reason why they all are important for the instruction selection.
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/bc9a501f-671f-403d-a6eb-9896d8815a32" width="600" />
+  <img src="https://github.com/user-attachments/assets/12f02d69-72bd-45cd-a692-a5774f83305c" width="600" />
 </p>
+
+In order to keep the core complexity low, but yet functional, instructions from ``FENCE`` to the end of the table are ignored.
+
 
 
 
