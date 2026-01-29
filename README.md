@@ -58,7 +58,7 @@ Now that we have an instruction to execute, we must interpret, or decode, it. We
 At first, based on the RISC-V Base instruction formats, it is necessary to identify, at first, the type of instruction we are dealing with, if it is any of the R-I-S-B-U-J types.
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/24af1633-3272-470e-ab67-59961f1e6721" width="600" />
+  <img src="https://github.com/user-attachments/assets/c9c58a85-2b7c-4231-9ca0-9eafd40e2ec8" width="600" />
 </p>
 
 The instruction type is determined by its opcode, in ``$instr[6:0]``. Where ``$instr[1:0]`` must be ``2'b11`` for valid RV32I instructions, indicating they are 32-bit instructions from its ISA. We'll assume all instructions are valid, so we can simply ignore these two bits.
@@ -128,26 +128,63 @@ Now that we have the register values, it’s time to operate on them. This is th
 
 The diagram of the CPU flow has an error, as the immediate value shall be in place of ``op2``, not ``op1``, as it is currently in the diagram.
 
-Our ALU's complete list of instructions to implement is the following.
+Our ALU's complete list of instructions, besides other instructions relevant to the system (e.g. load, store), is the following.
 
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/cd005a2f-394f-48b0-b7ef-5457f07c85ae" width="600" />
-</p>
+| Inst  |            Name            |                    Description                     |            Comments                         |
+|:-----:|:--------------------------:|:--------------------------------------------------:|:-------------------------------------------:|
+| add   | ADD                        | rd = rs1 + rs2                                     |                                             |
+| sub   | SUB                        | rd = rs1 - rs2                                     |                                             |
+| xor   | XOR                        | rd = rs1 ^ rs2                                     |                                             |
+| or    | OR                         | rd = rs1 \| rs2                                    |                                             |
+| and   | AND                        | rd = rs1 & rs2                                     |                                             |
+| sll   | Shift Left Logical         | rd = rs1 << rs2[4:0]                               |                                             |
+| srl   | Shift Right Logical        | rd = rs1 >> rs2[4:0]                               |                                             |
+| sra   | Shift Right Arithmetic     | rd = rs1 >> rs2[4:0] (msb extends)                 | Assign sra_rslt[63:0] instead               |
+| slt   | Set Less Than              | rd = (rs1 < rs2) ? 1 : 0                           | If sign is the same, then assign sltu_rslt  |
+| sltu  | Set Less Than (Unsigned)   | rd = (rs1 < rs2) ? 1 : 0 (zero-extends)            | Assign sltu_rslt                            |
+| addi  | ADD Immediate              | rd = rs1 + imm                                     |                                             |
+| xori  | XOR Immediate              | rd = rs1 ^ imm                                     |                                             |
+| ori   | OR Immediate               | rd = rs1 \| imm                                    |                                             |
+| andi  | AND Immediate              | rd = rs1 & imm                                     |                                             |
+| slli  | Shift Left Logical Imm     | rd = rs1 << imm[4:0]                               |                                             |
+| srli  | Shift Right Logical Imm    | rd = rs1 >> imm[4:0]                               |                                             |
+| srai  | Shift Right Arithmetic Imm | rd = rs1 >> imm (msb extends)                      |                                             |
+| slti  | Set Less Than Imm          | rd = (rs1 < imm) ? 1 : 0                           | If sign is the same, then assign sltiu_rslt |
+| sltiu | Set Less Than Imm (U)      | rd = (rs1 < imm) ? 1 : 0 (zero-extends)            | Assign sltiu_rslt                           |
+| lb    | Load Byte                  | rd = M[rs1 + imm][0:7]                             |                                             |
+| lh    | Load Half                  | rd = M[rs1 + imm][0:15]                            |                                             |
+| lw    | Load Word                  | rd = M[rs1 + imm][0:31]                            |                                             |
+| lbu   | Load Byte (U)              | rd = M[rs1 + imm][0:7] (zero-extends)              |                                             |
+| lhu   | Load Half (U)              | rd = M[rs1 + imm][0:15] (zero-extends)             |                                             |
+| sb    | Store Byte                 | M[rs1 + imm][0:7] = rs2[0:7]                       |                                             |
+| sh    | Store Half                 | M[rs1 + imm][0:15] = rs2[0:15]                     |                                             |
+| sw    | Store Word                 | M[rs1 + imm][0:31] = rs2[0:31]                     |                                             |
+| beq   | Branch ==                  | if (rs1 == rs2) PC += imm                          |                                             |
+| bne   | Branch !=                  | if (rs1 != rs2) PC += imm                          |                                             |
+| blt   | Branch <                   | if (rs1 < rs2) PC += imm                           |                                             |
+| bge   | Branch ≥                   | if (rs1 >= rs2) PC += imm                          |                                             |
+| bltu  | Branch < (U)               | if (rs1 < rs2) PC += imm (zero-extends)            |                                             |
+| bgeu  | Branch ≥ (U)               | if (rs1 >= rs2) PC += imm (zero-extends)           |                                             |
+| jal   | Jump And Link              | rd = PC + 4; PC += imm                             |                                             |
+| jalr  | Jump And Link Register     | rd = PC + 4; PC = rs1 + imm                        |                                             |
+| lui   | Load Upper Immediate       | rd = imm << 12                                     | Assign {imm[31:12], 12'b0}                  |
+| auipc | Add Upper Imm to PC        | rd = PC + (imm << 12)                              | Assign PC + {imm[31:12], 12'b0}             |
+
 
 As you may notice, ``SLTU``, ``SLTIU``, ``SLT``, ``SLTI``, ``SRA``, and ``SRAI`` result is based on variables that were not mentioned before; these are intermediate instructions that reduce the math in the one-line-per-instruction approach we are looking for in the ``$result`` assignment.
 
 ```verilog
    // 1. SLTU and SLTI (set if less than) results:
-   $sltu_rslt[31:0]  = {31'b0, $src1_value < $src2_value};
-   $sltiu_rslt[31:0] = {31'b0, $src1_value < $imm};
+   sltu_rslt[31:0]  = {31'b0, rs1 < rs2};
+   sltiu_rslt[31:0] = {31'b0, rs1 < imm};
    
    // 2. SRA and SRAI (shift right arithmetic) results:
    // 2.1. Sign-extended src1, so that even if shifting 31 bits the sign is not lost
-   $sext_src1[63:0] = {{32{$src1_value[31]}}, $src1_value};
+   sext_rs1[63:0] = {{32{rs1[31]}}, rs1};
    // 2.2. 64-bit sign-extended results, to be truncated
-   //      Extends $sext_src1 by whatever $src2_value or $src2_value positions say
-   $sra_rslt[63:0]  = $sext_src1 >> $src2_value[4:0];
-   $srai_rslt[63:0] = $sext_src1 >> $src2_value[4:0];
+   //      Extends $sext_src1 by whatever rs2 or imm positions say
+   sra_rslt[63:0]  = sext_rs1 >> rs2[4:0];
+   srai_rslt[63:0] = sext_rs1 >> imm[4:0];
 ```
 
 
